@@ -49,13 +49,6 @@ async def verify_api_key(x_api_key: str = Header(...)):
 - `x_api_key` gets the value from `X-API-Key` header (case-insensitive)
 - Returning the key allows it to be used in the endpoint function if needed
 
-**Applying to endpoints:**
-```python
-@app.post("/predict", dependencies=[Depends(verify_api_key)])
-def predict(...):
-    # This only runs if API key is valid
-```
-
 ### 2. Rate Limiting
 
 We track requests per IP address using an in-memory dictionary:
@@ -97,11 +90,6 @@ def check_rate_limit(request: Request):
     return True
 ```
 
-**Why this algorithm:**
-- **Sliding Window**: More accurate than fixed windows
-- **Per-IP Tracking**: Prevents one user from affecting others
-- **Automatic Cleanup**: Old timestamps are filtered out
-
 **Limitations (Important to mention in interview):**
 - ❌ In-memory storage lost on server restart
 - ❌ Doesn't work across multiple server instances
@@ -125,10 +113,6 @@ class JobCreate(BaseModel):
     
     @validator('text')
     def validate_text_content(cls, v):
-        """
-        Additional validation beyond length.
-        """
-        # Remove leading/trailing whitespace for check
         stripped = v.strip()
         
         if len(stripped) < 10:
@@ -137,14 +121,8 @@ class JobCreate(BaseModel):
         if not any(c.isalnum() for c in stripped):
             raise ValueError("Text must contain at least some alphanumeric characters")
         
-        return v  # Return original value (keep whitespace)
+        return v
 ```
-
-**Why this works:**
-- `Field(...)` provides basic constraints
-- `@validator` adds custom business logic
-- Returns clear error messages to user
-- Runs automatically before endpoint logic
 
 ---
 
@@ -162,7 +140,7 @@ import uuid
 from collections import defaultdict
 
 from . import models, schemas
-from .database import engine, get_db
+from .database import engine, get_db, SessionLocal
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
@@ -301,10 +279,7 @@ def get_job_status(
     job_id: str,
     db: Session = Depends(get_db)
 ):
-    """
-    Get job status.
-    Requires valid API key (no rate limit on GET).
-    """
+    """Get job status. Requires valid API key."""
     job = db.query(models.MLJob).filter(models.MLJob.job_uuid == job_id).first()
     
     if not job:
@@ -322,12 +297,7 @@ def get_job_status(
 # ============================================
 
 def process_ml_job(job_id: str):
-    """
-    Simulate ML processing.
-    Updates job status in database.
-    """
-    from .database import SessionLocal
-    
+    """Simulate ML processing. Updates job status in database."""
     db = SessionLocal()
     try:
         # Simulate ML model delay
@@ -397,6 +367,25 @@ class JobResponse(BaseModel):
         orm_mode = True
 ```
 
+### File: `app/models.py`
+
+```python
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime
+from datetime import datetime
+from .database import Base
+
+class MLJob(Base):
+    __tablename__ = "ml_jobs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_uuid = Column(String, unique=True, index=True)
+    input_text = Column(Text)
+    status = Column(String, default="pending")
+    result_score = Column(Float, nullable=True)
+    result_label = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+```
+
 ---
 
 ## What Makes This Solution "Senior Level"
@@ -420,15 +409,57 @@ class JobResponse(BaseModel):
 - Suggests production alternatives (Redis)
 - Considers distributed systems (multiple servers)
 
-### 4. **Code Quality**
-- Type hints throughout
-- Docstrings for functions
-- Constants defined clearly (RATE_LIMIT, TIME_WINDOW)
-- Logging for debugging
+---
+
+## Interview Follow-up Questions & Answers
+
+**Q1: "Why store rate limit data in memory? What are the problems?"**
+
+A: In-memory storage has several issues:
+- Data is lost on server restart
+- Doesn't work with multiple server instances (horizontal scaling)
+- Memory usage grows with unique IPs
+
+**Production solution:** Use Redis with TTL:
+```python
+import redis
+
+redis_client = redis.Redis(host='localhost', port=6379)
+
+def check_rate_limit(ip: str):
+    key = f"rate_limit:{ip}"
+    count = redis_client.incr(key)
+    if count == 1:
+        redis_client.expire(key, 60)  # TTL: 60 seconds
+    return count <= 5
+```
+
+**Q2: "How would you handle different rate limits for different user tiers?"**
+
+A: Store user tier in database, pass it to rate limiter:
+
+```python
+async def check_rate_limit(request: Request, user_key: str):
+    user_tier = get_user_tier(user_key)  # Query DB
+    limit = 20 if user_tier == "premium" else 5
+    # ... rest of logic
+```
+
+**Q3: "What about API key rotation? How do you handle that?"**
+
+A: Store keys in database with expiration dates:
+
+```python
+class APIKey(Base):
+    key = Column(String, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    expires_at = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+```
 
 ---
 
-## Testing
+## Testing Commands
 
 ```bash
 # Test 1: Health check (public)
@@ -467,88 +498,6 @@ curl -X POST http://localhost:8000/predict \
 
 ---
 
-## Interview Follow-up Questions & Answers
-
-**Q1: "Why store rate limit data in memory? What are the problems?"**
-
-A: In-memory storage has several issues:
-- Data is lost on server restart
-- Doesn't work with multiple server instances (horizontal scaling)
-- Memory usage grows with unique IPs
-
-**Production solution:** Use Redis with TTL:
-```python
-import redis
-
-redis_client = redis.Redis(host='localhost', port=6379)
-
-def check_rate_limit(ip: str):
-    key = f"rate_limit:{ip}"
-    count = redis_client.incr(key)
-    if count == 1:
-        redis_client.expire(key, 60)  # TTL: 60 seconds
-    return count <= 5
-```
-
-**Q2: "How would you handle different rate limits for different user tiers?"**
-
-A: Store user tier in database, pass it to rate limiter:
-
-```python
-# Premium users: 20 req/min
-# Free users: 5 req/min
-
-async def check_rate_limit(request: Request, user_key: str):
-    user_tier = get_user_tier(user_key)  # Query DB
-    limit = 20 if user_tier == "premium" else 5
-    # ... rest of logic
-```
-
-**Q3: "What about API key rotation? How do you handle that?"**
-
-A: Store keys in database with expiration dates:
-
-```python
-class APIKey(Base):
-    key = Column(String, unique=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    expires_at = Column(DateTime)
-    is_active = Column(Boolean, default=True)
-
-def verify_api_key(key: str):
-    db_key = db.query(APIKey).filter(
-        APIKey.key == key,
-        APIKey.is_active == True,
-        APIKey.expires_at > datetime.utcnow()
-    ).first()
-    
-    if not db_key:
-        raise HTTPException(401)
-```
-
-**Q4: "How do you prevent brute-force attacks on API keys?"**
-
-A: Add progressive delays after failed attempts:
-
-```python
-failed_attempts = defaultdict(int)
-
-async def verify_api_key(x_api_key: str, request: Request):
-    ip = request.client.host
-    
-    if x_api_key not in VALID_KEYS:
-        failed_attempts[ip] += 1
-        delay = min(failed_attempts[ip] * 2, 30)  # Max 30 seconds
-        time.sleep(delay)
-        raise HTTPException(401)
-    
-    # Success: reset counter
-    failed_attempts[ip] = 0
-    return x_api_key
-```
-
----
-
 ## Key Takeaways
 
 1. **Use dependency injection** for reusable security checks
@@ -556,9 +505,5 @@ async def verify_api_key(x_api_key: str, request: Request):
 3. **Be aware of limitations** - know when in-memory isn't enough
 4. **Return proper status codes** - helps API consumers debug
 5. **Think production** - mention scalability considerations
-
-This pattern applies to EVERY production API you'll build.
-
----
 
 **Time to implement from scratch: 30-40 minutes (with practice)**
