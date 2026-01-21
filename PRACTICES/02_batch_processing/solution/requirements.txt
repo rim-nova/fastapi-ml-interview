@@ -1,0 +1,14 @@
+pydantic
+pydantic_settings
+sqlalchemy
+uvicorn[standard]
+fastapi
+psycopg2-binary
+requests
+
+# FOR ML Models
+transformers
+torch
+
+# for multi part
+python-multipart
