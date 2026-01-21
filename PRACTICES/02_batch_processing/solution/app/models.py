@@ -1,15 +1,16 @@
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime
 from sqlalchemy.dialects.postgresql import JSON
 from datetime import datetime
-from app.db.base import Base  # Assuming you have a base class like in Practice 1
+from app.db.session import Base
 
 
 class BatchJob(Base):
+    """Batch processing job"""
     __tablename__ = "batch_jobs"
 
     id = Column(Integer, primary_key=True, index=True)
     batch_uuid = Column(String, unique=True, index=True)
-    status = Column(String, default="pending")  # pending, processing, completed, failed
+    status = Column(String, default="pending")
     total_count = Column(Integer, default=0)
     processed_count = Column(Integer, default=0)
     summary = Column(JSON, nullable=True)
@@ -19,6 +20,7 @@ class BatchJob(Base):
 
 
 class BatchResult(Base):
+    """Individual result within a batch"""
     __tablename__ = "batch_results"
 
     id = Column(Integer, primary_key=True, index=True)
