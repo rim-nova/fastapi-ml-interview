@@ -1,21 +1,24 @@
 import os
-from pydantic import AnyHttpUrl, validator, PostgresDsn
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import AnyHttpUrl, PostgresDsn, field_validator
 from typing import List, Union, Set
 
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Secure ML API"
 
-    # Database
-    # Uses PostgresDsn for validation
+    # 1. Add these fields to match your .env file
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str
+    POSTGRES_DB: str
+
+    # Database URL
     DATABASE_URL: PostgresDsn = os.getenv(
         "DATABASE_URL",
         "postgresql://user:password@db:5432/ml_db"
     )
 
     # Security
-    # Parses JSON string '["key1", "key2"]' or set literal from .env
     API_KEYS: Set[str] = {
         "user-key-1",
         "user-key-2",
@@ -27,7 +30,7 @@ class Settings(BaseSettings):
     # CORS
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
@@ -35,9 +38,12 @@ class Settings(BaseSettings):
             return v
         raise ValueError(v)
 
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+    # 2. Configuration to handle extra env vars safely
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=".env",
+        extra="ignore"
+    )
 
 
 settings = Settings()
