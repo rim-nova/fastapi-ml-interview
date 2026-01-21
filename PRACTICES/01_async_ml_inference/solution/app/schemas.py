@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
 
@@ -14,5 +14,5 @@ class JobResponse(BaseModel):
     result_label: Optional[str] = None
     result_score: Optional[float] = None
 
-    class Config:
-        orm_mode = True
+    # Pydantic V2 Config
+    model_config = ConfigDict(from_attributes=True)
