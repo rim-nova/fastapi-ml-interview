@@ -1,0 +1,94 @@
+# --- Python & General ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+# Common names for virtual envs
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# --- FastAPI & Environment Config ---
+# NEVER commit .env files containing API keys or secrets
+.env
+.env.*
+!.env.example
+
+# --- Machine Learning & Data Science ---
+# Ignore large datasets
+data/
+datasets/
+raw_data/
+processed_data/
+*.csv
+*.tsv
+*.json
+*.parquet
+*.feather
+
+# Ignore trained model artifacts (often too large for Git)
+*.pkl
+*.pickle
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.onnx
+*.joblib
+models/
+saved_models/
+checkpoints/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# --- Testing & Code Quality ---
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Databases (Local Development) ---
+*.sqlite3
+*.db
+*.db-journal
+
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- Logs ---
+*.log
+logs/
