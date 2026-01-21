@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+pydantic-settings
+requests
+
+# FOR ML Models
+transformers
+torch
+textblob
