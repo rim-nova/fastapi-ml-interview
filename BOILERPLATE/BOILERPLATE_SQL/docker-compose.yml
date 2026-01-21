@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: fastapi-sql-app
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=FastAPI SQL App
+      - DEBUG=true
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fastapi_db
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: fastapi-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fastapi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # Optional init script
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # PgAdmin (PostgreSQL Web Admin) - Optional
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: fastapi-pgadmin
+    profiles:
+      - tools  # Only start with: docker-compose --profile tools up
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Redis (Optional - for caching/sessions)
+  redis:
+    image: redis:7-alpine
+    container_name: fastapi-redis
+    profiles:
+      - cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# Volumes
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Networks
+networks:
+  default:
+    name: fastapi-sql-network

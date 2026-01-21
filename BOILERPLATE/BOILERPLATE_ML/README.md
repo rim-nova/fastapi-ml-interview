@@ -67,6 +67,7 @@ docker-compose down -v
 ## Troubleshooting
 
 If services don't start:
+
 ```bash
 # Rebuild from scratch
 docker-compose down -v
@@ -75,6 +76,7 @@ docker-compose up
 ```
 
 If port 8000 is in use:
+
 ```bash
 # Change port in docker-compose.yml
 ports:

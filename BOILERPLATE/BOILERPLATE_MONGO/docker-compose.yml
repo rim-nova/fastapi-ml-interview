@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: fastapi-mongo-app
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=FastAPI MongoDB App
+      - DEBUG=true
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DB_NAME=fastapi_db
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    volumes:
+      - .:/app
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: fastapi-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      # Remove these for no authentication (development)
+      # MONGO_INITDB_ROOT_USERNAME: admin
+      # MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: fastapi_db
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Mongo Express (MongoDB Web Admin) - Optional
+  mongo-express:
+    image: mongo-express
+    container_name: fastapi-mongo-express
+    profiles:
+      - tools  # Start with: docker-compose --profile tools up
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+
+  # Redis (Optional - for caching)
+  redis:
+    image: redis:7-alpine
+    container_name: fastapi-redis
+    profiles:
+      - cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+# Volumes
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# Networks
+networks:
+  default:
+    name: fastapi-mongo-network

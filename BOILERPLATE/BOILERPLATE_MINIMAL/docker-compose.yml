@@ -1,0 +1,101 @@
+version: "3.8"
+
+services:
+  # FastAPI Application
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development  # Use 'production' for prod
+    container_name: fastapi-app
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=FastAPI App
+      - DEBUG=true
+      - DATABASE_URL=sqlite:///./data/app.db
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    volumes:
+      - .:/app  # Mount code for hot reload in development
+      - ./data:/app/data  # Persist SQLite database
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ============================================
+  # OPTIONAL SERVICES (uncomment as needed)
+  # ============================================
+
+  # PostgreSQL Database
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: fastapi-postgres
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: fastapi_db
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U postgres"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Redis (for caching/sessions/rate limiting)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: fastapi-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   command: redis-server --appendonly yes
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # MongoDB (alternative NoSQL database)
+  # mongodb:
+  #   image: mongo:7
+  #   container_name: fastapi-mongodb
+  #   environment:
+  #     MONGO_INITDB_ROOT_USERNAME: admin
+  #     MONGO_INITDB_ROOT_PASSWORD: password
+  #   ports:
+  #     - "27017:27017"
+  #   volumes:
+  #     - mongo_data:/data/db
+
+  # PgAdmin (PostgreSQL web admin)
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: fastapi-pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - postgres
+
+# Volumes for data persistence
+volumes:
+  app_data:
+  # postgres_data:
+  # redis_data:
+  # mongo_data:
+
+# Networks (optional, for service isolation)
+networks:
+  default:
+    name: fastapi-network
