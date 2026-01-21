@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   web:
     build: .
@@ -6,7 +8,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy  # Waits until DB is actually ready
 
   db:
     image: postgres:14
@@ -16,6 +19,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    # Check if Postgres is ready every 5 seconds
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d ml_db" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
