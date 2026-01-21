@@ -5,3 +5,7 @@ uvicorn[standard]
 fastapi
 psycopg2-binary
 requests
+
+# FOR ML Models
+transformers
+torch
