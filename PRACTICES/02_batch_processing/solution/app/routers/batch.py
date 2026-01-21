@@ -63,4 +63,16 @@ def get_batch_status(batch_id: str, db: Session = Depends(get_db)):
     if batch.total_count > 0:
         progress = round((batch.processed_count / batch.total_count) * 100, 1)
 
-    return {**batch.__dict__, "progress_percent": progress}
+    # FIX: Explicitly map the fields.
+    # Do NOT use **batch.__dict__ because it misses the renaming logic.
+    return {
+        "batch_id": batch.batch_uuid,
+        "status": batch.status,
+        "total_count": batch.total_count,
+        "processed_count": batch.processed_count,
+        "progress_percent": progress,
+        "summary": batch.summary,
+        "error_message": batch.error_message,
+        "created_at": batch.created_at,
+        "completed_at": batch.completed_at
+    }
