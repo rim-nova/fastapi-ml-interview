@@ -1,25 +1,34 @@
 from fastapi import FastAPI
-from . import models
-from .database import engine
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.db.session import engine
+from app import models
+from app.routers import inference, jobs
 
-# Create database tables
+# Create Tables
 models.Base.metadata.create_all(bind=engine)
 
-# Initialize FastAPI app
 app = FastAPI(
-    title="ML Backend Service",
-    description="Production-ready ML API",
+    title=settings.PROJECT_NAME,
     version="1.0.0"
 )
 
-@app.get("/")
-def read_root():
-    """Root endpoint"""
-    return {"message": "ML Backend Service is running"}
+# CORS Middleware
+if settings.BACKEND_CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+# Include Routers
+app.include_router(inference.router)
+app.include_router(jobs.router)
+
 
 @app.get("/health")
 def health_check():
-    """Health check endpoint"""
+    """Public Health Check (No Auth Required)"""
     return {"status": "healthy"}
-
-# Add your endpoints below this line
